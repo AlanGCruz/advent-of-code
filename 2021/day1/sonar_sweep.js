@@ -2,7 +2,7 @@ const fs = require('fs');
 
 let dataArr;
 try {
-  const data = fs.readFileSync('adventofcode-2021-day-1-input.txt', 'utf8');
+  const data = fs.readFileSync('input.txt', 'utf8');
   dataArr = data.split("\n").map(Number);
 } catch (err) {
   console.error(err);
