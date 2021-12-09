@@ -24,47 +24,34 @@ const byCols= (arr) => {
     return boardsByCol;
 }
 
-const checkForCompletedColumn = (boards) => {
-    let isCompletedColumn = false;
-    let completedBoard = [];
+const checkForCompletedColumn = (boards, excludedBoardsIndex = []) => {
+    let completedBoardsIndex = [];
     for(let i = 0; i < boards.length; i++) {
-        let boardByCols = byCols(boards[i])
+        if(excludedBoardsIndex.length > 0 && excludedBoardsIndex.includes(i)) continue;
+        let boardByCols = byCols(boards[i]);
         for(let j = 0; j < boardByCols.length; j++) {
             if(boardByCols[j].every(colValue => colValue === "x")) {
-                isCompletedColumn = true;
-                break;
+                completedBoardsIndex.push(i)
             }
         }
-        if(isCompletedColumn) {
-            completedBoard = [boards[i], i];
-            break;
-        }
     }
-    if(isCompletedColumn) {
-        return  completedBoard;
-    }
-    return completedBoard;
+    return completedBoardsIndex;
 }
 
-const checkForCompletedRows = (boards) => {
-    let completedBoard = [];
+const checkForCompletedRows = (boards, excludedBoardsIndex = [], currentNumber) => {
+    let completedBoardsIndex = [];
     for(let i = 0; i < boards.length; i++) {
         let markCount = 0;
-        let completedRow = false;
+        if(excludedBoardsIndex.length > 0 && excludedBoardsIndex.includes(i)) continue;
         for(let j = 0; j < boards[i].length; j++) {
             if(j % 5 == 0) markCount = 0;
             if(boards[i][j] === 'x') markCount += 1;
             if(markCount === 5) {
-                completedRow = true;
-                break;
+                completedBoardsIndex.push(i);
             }
         }
-        if(completedRow) {
-            completedBoard = [boards[i], i];
-            break;
-        }
     }
-    return completedBoard;
+    return completedBoardsIndex;
 }
 
 const sumUnmarkedNumbers = (board) => {
@@ -75,40 +62,85 @@ const sumUnmarkedNumbers = (board) => {
     });
 }
 
-const searchAndMarkAllBoards = (boards, number) => {
+const searchAndMarkAllBoards = (boards, number, excludedBoardsIndex = []) => {
     for(let i = 0; i < boards.length; i++) {
+        if(excludedBoardsIndex.includes(i)) continue;
         for(let j = 0; j < boards[i].length; j++) {
-            if(parseInt(boards[i][j]) === parseInt(number)) {
+            if(parseInt(boards[i][j], 10) === parseInt(number, 10)) {
                 boards[i][j] = 'x';
             }
         }
     }
-   // console.log(`****************new board marking number: ${number} ************************`);
-   // console.log(boards);
+}
+
+const lastWinnerBoardScore = (numbers, boards) => {
+    let winsCount = 0;
+    let lastWinnerBoardIndex;
+    let lastWinnerNumber;
+    let excludedBoardsIndex = [];
+    let boardsSize = boards.length;
+    let lastCompleterNumber;
+    for(let i = 0; i < numbers.length; i++) {
+        searchAndMarkAllBoards(boards, numbers[i], excludedBoardsIndex);
+
+        let completedRowsIndex = checkForCompletedRows(boards, excludedBoardsIndex, numbers[i]);
+
+        if(completedRowsIndex.length > 0) {
+            excludedBoardsIndex.push(...completedRowsIndex);
+            lastCompleterNumber = numbers[i];
+            winsCount++
+        }
+
+        if((boardsSize - winsCount) === 0) {
+            lastWinnerNumber = lastCompleterNumber;
+            lastWinnerBoardIndex = completedRowsIndex.pop();
+            break;
+        } else if((numbers.length - 1) === i) {
+            lastWinnerNumber = lastCompleterNumber;
+            lastWinnerBoardIndex = excludedBoardsIndex.pop();
+            break;
+        }
+
+        let completedColumnsIndex = checkForCompletedColumn(boards, excludedBoardsIndex);
+
+        if(completedColumnsIndex.length > 0) {
+            excludedBoardsIndex.push(...completedColumnsIndex);
+            lastCompleterNumber = numbers[i];
+            winsCount++
+        }
+
+        if((boardsSize - winsCount) === 0) {
+            lastWinnerNumber = lastCompleterNumber;
+            lastWinnerBoardIndex = completedColumnsIndex.pop();
+            break;
+        } else if((numbers.length - 1) == i) {
+            lastWinnerNumber = numbers[i];
+            lastWinnerBoardIndex = excludedBoardsIndex.pop();
+            break;
+        }
+    }
+    return sumUnmarkedNumbers(boards[lastWinnerBoardIndex]) * parseInt(lastWinnerNumber);
 }
 
 const bingoScore = (numbers, boards) => {
-    let completedRowInfo = [];
-    let completedColumnInfo = [];
     let winnerIndex, winnerBoard, winnerNumber;
+    let completedRowsIndex = [];
+    let completedColumnsIndex = [];
     for(let i = 0; i < numbers.length; i++) {
         searchAndMarkAllBoards(boards, numbers[i]);
-        completedRowInfo = checkForCompletedRows(boards);
-        completedColumnInfo = checkForCompletedColumn(boards);
-        if(completedRowInfo.length > 0 || completedColumnInfo.length > 0) {
+        completedRowsIndex = checkForCompletedRows(boards);
+        completedColumnsIndex = checkForCompletedColumn(boards);
+        if(completedRowsIndex.length > 0 || completedColumnsIndex.length > 0) {
             winnerNumber = numbers[i];
             break;
         }
     }
-    if(completedRowInfo.length > 0 && completedColumnInfo.length > 0){
-        [winnerBoard,winnerIndex] = completedRowInfo[1] < completedColumnInfo[1] ? completedRowInfo : completedColumnInfo;
-    } else if(completedRowInfo.length > 0) {
-        [winnerBoard,winnerIndex] = completedRowInfo;
-    } else if(completedColumnInfo[1]) {
-        [winnerBoard,winnerIndex] = completedColumnInfo;
-    }
-    return sumUnmarkedNumbers(winnerBoard) * parseInt(winnerNumber);
 
+    winnerIndex = completedRowsIndex.length > 0 ? completedRowsIndex.shift() : completedColumnsIndex.shift();
+    winnerBoard = boards[winnerIndex];
+
+    return sumUnmarkedNumbers(winnerBoard) * parseInt(winnerNumber);
 }
 
-console.log(bingoScore(numbers, boards));
+console.log("first winner board score: ", bingoScore(numbers, boards));
+console.log("last winner board score: ", lastWinnerBoardScore(numbers, boards));
